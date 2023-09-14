@@ -1,7 +1,3 @@
-Certainly! Below is a sample `README.md` file for the `Utils` class you provided:
-
----
-
 # String Utilities
 
 A simple utility library that provides various string operations to make string manipulations easier and more efficient.
