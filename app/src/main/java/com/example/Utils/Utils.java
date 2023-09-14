@@ -6,11 +6,31 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Utility class providing a collection of string operations.
+ */
 public class Utils {
 
     private static final int INDEX_NOT_FOUND = -1;
     private static final String EMPTY = "";
 
+    /**
+     * Abbreviates a given string between specified indices and appends a provided suffix if the string is truncated.
+     * If the lower index is greater than the string's length, the returned string will end at the string's length.
+     * Upper index values less than the lower index or less than -1 are not allowed.
+     *
+     * Example:
+     * <pre>
+     *    Utils.abbreviate("Hello World", 0, 5, "...") returns "Hello..."
+     * </pre>
+     *
+     * @param str          The input string. Can be empty or null, in which case the input is returned unchanged.
+     * @param lower        The lower bound index. If greater than string length, string length is used.
+     * @param upper        The upper bound index. If set to -1 or greater than string length, string length is used.
+     * @param appendToEnd  The string to append if the original string is abbreviated.
+     * @return The abbreviated string.
+     * @throws IllegalArgumentException if upper index is less than -1 or less than the lower index.
+     */
     public static String abbreviate(final String str, int lower, int upper, final String appendToEnd) {
         isTrue(upper >= -1, "upper value cannot be less than -1");
         isTrue(upper >= lower || upper == -1, "upper value is less than lower value");
@@ -41,6 +61,20 @@ public class Utils {
         return result.toString();
     }
 
+    /**
+     * Extracts initials from a given string based on provided delimiters.
+     * If delimiters are not provided, space is used as a default delimiter.
+     * The returned string does not contain any delimiter characters.
+     *
+     * Example:
+     * <pre>
+     *    Utils.initials("John A. Doe", ' ', '.') returns "JAD"
+     * </pre>
+     *
+     * @param str         The input string. If empty or null, the original input is returned.
+     * @param delimiters  Character delimiters used to identify word boundaries.
+     * @return The initials formed from the string, omitting delimiter characters.
+     */
     public static String initials(final String str, final char... delimiters) {
         if (isEmpty(str)) {
             return str;
@@ -68,6 +102,18 @@ public class Utils {
         return new String(newCodePoints, 0, count);
     }
 
+    /**
+     * Converts uppercase characters in the input string to lowercase and vice-versa.
+     * Whitespace characters are not altered, but they affect the case transformation of adjacent characters.
+     *
+     * Example:
+     * <pre>
+     *    Utils.swapCase("Hello WORLD") returns "hELLO world"
+     * </pre>
+     *
+     * @param str The input string. If empty or null, the original input is returned.
+     * @return The string with swapped case characters.
+     */
     public static String swapCase(final String str) {
         if (isEmpty(str)) {
             return str;
@@ -99,6 +145,24 @@ public class Utils {
         return new String(newCodePoints, 0, outOffset);
     }
 
+    /**
+     * Wraps a string at specified length, using given new line string and wrapping strategy.
+     * If the input string is null, the method returns null.
+     * For wrap length values less than 1, the wrap length is set to 1.
+     *
+     * Example:
+     * <pre>
+     *    Utils.wrap("The quick brown fox jumps", 10, "\n", true, " ") returns:
+     *    "The quick\nbrown fox\njumps"
+     * </pre>
+     *
+     * @param str            The input string.
+     * @param wrapLength     Maximum length for each line.
+     * @param newLineStr     String to use for new lines. If null, system's line separator is used.
+     * @param wrapLongWords  Flag to determine if long words should be split.
+     * @param wrapOn         Characters or patterns to wrap on. If blank, space is used.
+     * @return The wrapped string.
+     */
     public static String wrap(final String str,
                               int wrapLength,
                               String newLineStr,

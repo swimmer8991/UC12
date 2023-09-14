@@ -1,0 +1,525 @@
+GPT-4
+
+User
+Document all public entries using javadoc in the specified source code
+
+public class Utils {
+
+    private static final int INDEX_NOT_FOUND = -1;
+    private static final String EMPTY = "";
+
+    public static String abbreviate(final String str, int lower, int upper, final String appendToEnd) {
+        isTrue(upper >= -1, "upper value cannot be less than -1");
+        isTrue(upper >= lower || upper == -1, "upper value is less than lower value");
+        if (isEmpty(str)) {
+            return str;
+        }
+
+        if (lower > str.length()) {
+            lower = str.length();
+        }
+
+        if (upper == -1 || upper > str.length()) {
+            upper = str.length();
+        }
+
+        final StringBuilder result = new StringBuilder();
+        final int index = indexOf(str, " ", lower);
+        if (index == -1) {
+            result.append(str, 0, upper);
+            if (upper != str.length()) {
+                result.append(defaultString(appendToEnd));
+            }
+        } else {
+            result.append(str, 0, Math.min(index, upper));
+            result.append(defaultString(appendToEnd));
+        }
+
+        return result.toString();
+    }
+
+    public static String initials(final String str, final char... delimiters) {
+        if (isEmpty(str)) {
+            return str;
+        }
+        if (delimiters != null && delimiters.length == 0) {
+            return EMPTY;
+        }
+        final Set<Integer> delimiterSet = generateDelimiterSet(delimiters);
+        final int strLen = str.length();
+        final int[] newCodePoints = new int[strLen / 2 + 1];
+        int count = 0;
+        boolean lastWasGap = true;
+        for (int i = 0; i < strLen; ) {
+            final int codePoint = str.codePointAt(i);
+
+            if (delimiterSet.contains(codePoint) || delimiters == null && Character.isWhitespace(codePoint)) {
+                lastWasGap = true;
+            } else if (lastWasGap) {
+                newCodePoints[count++] = codePoint;
+                lastWasGap = false;
+            }
+
+            i += Character.charCount(codePoint);
+        }
+        return new String(newCodePoints, 0, count);
+    }
+
+    public static String swapCase(final String str) {
+        if (isEmpty(str)) {
+            return str;
+        }
+        final int strLen = str.length();
+        final int[] newCodePoints = new int[strLen];
+        int outOffset = 0;
+        boolean whitespace = true;
+        for (int index = 0; index < strLen; ) {
+            final int oldCodepoint = str.codePointAt(index);
+            final int newCodePoint;
+            if (Character.isUpperCase(oldCodepoint) || Character.isTitleCase(oldCodepoint)) {
+                newCodePoint = Character.toLowerCase(oldCodepoint);
+                whitespace = false;
+            } else if (Character.isLowerCase(oldCodepoint)) {
+                if (whitespace) {
+                    newCodePoint = Character.toTitleCase(oldCodepoint);
+                    whitespace = false;
+                } else {
+                    newCodePoint = Character.toUpperCase(oldCodepoint);
+                }
+            } else {
+                whitespace = Character.isWhitespace(oldCodepoint);
+                newCodePoint = oldCodepoint;
+            }
+            newCodePoints[outOffset++] = newCodePoint;
+            index += Character.charCount(newCodePoint);
+        }
+        return new String(newCodePoints, 0, outOffset);
+    }
+
+    public static String wrap(final String str,
+                              int wrapLength,
+                              String newLineStr,
+                              final boolean wrapLongWords,
+                              String wrapOn) {
+        if (str == null) {
+            return null;
+        }
+        if (newLineStr == null) {
+            newLineStr = System.lineSeparator();
+        }
+        if (wrapLength < 1) {
+            wrapLength = 1;
+        }
+        if (isBlank(wrapOn)) {
+            wrapOn = " ";
+        }
+        final Pattern patternToWrapOn = Pattern.compile(wrapOn);
+        final int inputLineLength = str.length();
+        int offset = 0;
+        final StringBuilder wrappedLine = new StringBuilder(inputLineLength + 32);
+        int matcherSize = -1;
+
+        while (offset < inputLineLength) {
+            int spaceToWrapAt = -1;
+            Matcher matcher = patternToWrapOn.matcher(str.substring(offset,
+                    Math.min((int) Math.min(Integer.MAX_VALUE, offset + wrapLength + 1L), inputLineLength)));
+            if (matcher.find()) {
+                if (matcher.start() == 0) {
+                    matcherSize = matcher.end();
+                    if (matcherSize != 0) {
+                        offset += matcher.end();
+                        continue;
+                    }
+                    offset += 1;
+                }
+                spaceToWrapAt = matcher.start() + offset;
+            }
+
+            if (inputLineLength - offset <= wrapLength) {
+                break;
+            }
+
+            while (matcher.find()) {
+                spaceToWrapAt = matcher.start() + offset;
+            }
+
+            if (spaceToWrapAt >= offset) {
+                wrappedLine.append(str, offset, spaceToWrapAt);
+                wrappedLine.append(newLineStr);
+                offset = spaceToWrapAt + 1;
+            } else if (wrapLongWords) {
+                if (matcherSize == 0) {
+                    offset--;
+                }
+                wrappedLine.append(str, offset, wrapLength + offset);
+                wrappedLine.append(newLineStr);
+                offset += wrapLength;
+                matcherSize = -1;
+            } else {
+                matcher = patternToWrapOn.matcher(str.substring(offset + wrapLength));
+                if (matcher.find()) {
+                    matcherSize = matcher.end() - matcher.start();
+                    spaceToWrapAt = matcher.start() + offset + wrapLength;
+                }
+
+                if (spaceToWrapAt >= 0) {
+                    if (matcherSize == 0 && offset != 0) {
+                        offset--;
+                    }
+                    wrappedLine.append(str, offset, spaceToWrapAt);
+                    wrappedLine.append(newLineStr);
+                    offset = spaceToWrapAt + 1;
+                } else {
+                    if (matcherSize == 0 && offset != 0) {
+                        offset--;
+                    }
+                    wrappedLine.append(str, offset, str.length());
+                    offset = inputLineLength;
+                    matcherSize = -1;
+                }
+            }
+        }
+
+        if (matcherSize == 0 && offset < inputLineLength) {
+            offset--;
+        }
+
+        wrappedLine.append(str, offset, str.length());
+
+        return wrappedLine.toString();
+    }
+
+    private static Set<Integer> generateDelimiterSet(final char[] delimiters) {
+        final Set<Integer> delimiterHashSet = new HashSet<>();
+        if (delimiters == null || delimiters.length == 0) {
+            if (delimiters == null) {
+                delimiterHashSet.add(Character.codePointAt(new char[]{' '}, 0));
+            }
+
+            return delimiterHashSet;
+        }
+
+        for (int index = 0; index < delimiters.length; index++) {
+            delimiterHashSet.add(Character.codePointAt(delimiters, index));
+        }
+        return delimiterHashSet;
+    }
+
+    private static void isTrue(final boolean expression, final String message) {
+        if (!expression) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private static int length(final CharSequence cs) {
+        return cs == null ? 0 : cs.length();
+    }
+
+    private static boolean isEmpty(final CharSequence cs) {
+        return cs == null || cs.length() == 0;
+    }
+
+    private static boolean isBlank(final CharSequence cs) {
+        final int strLen = length(cs);
+        if (strLen == 0) {
+            return true;
+        }
+        for (int i = 0; i < strLen; i++) {
+            if (!Character.isWhitespace(cs.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String defaultString(final String str) {
+        return Objects.toString(str, EMPTY);
+    }
+
+    private static int indexOf(final CharSequence seq, final CharSequence searchSeq, final int startPos) {
+        if (seq == null || searchSeq == null) {
+            return INDEX_NOT_FOUND;
+        }
+        if (seq instanceof String) {
+            return ((String) seq).indexOf(searchSeq.toString(), startPos);
+        }
+        if (seq instanceof StringBuilder) {
+            return ((StringBuilder) seq).indexOf(searchSeq.toString(), startPos);
+        }
+        if (seq instanceof StringBuffer) {
+            return ((StringBuffer) seq).indexOf(searchSeq.toString(), startPos);
+        }
+        return seq.toString().indexOf(searchSeq.toString(), startPos);
+    }
+}
+
+ChatGPT
+Sure, here's the source code with Javadoc documentation for the public methods:
+
+java
+Copy code
+/**
+ * Utility class for string operations.
+ */
+public class Utils {
+
+    private static final int INDEX_NOT_FOUND = -1;
+    private static final String EMPTY = "";
+
+    /**
+     * Abbreviates a given string between specified indices and appends the provided suffix if needed.
+     *
+     * @param str          The input string.
+     * @param lower        The lower bound index.
+     * @param upper        The upper bound index.
+     * @param appendToEnd  The string to append at the end.
+     * @return The abbreviated string.
+     * @throws IllegalArgumentException if given constraints are violated.
+     */
+    public static String abbreviate(final String str, int lower, int upper, final String appendToEnd) {
+        // Implementation...
+    }
+
+    /**
+     * Gets the initials from a given string based on provided delimiters.
+     *
+     * @param str         The input string.
+     * @param delimiters  The character delimiters.
+     * @return The initials of the string.
+     */
+    public static String initials(final String str, final char... delimiters) {
+        // Implementation...
+    }
+
+    /**
+     * Swaps the case of a given string.
+     *
+     * @param str The input string.
+     * @return The swapped case string.
+     */
+    public static String swapCase(final String str) {
+        // Implementation...
+    }
+
+    /**
+     * Wraps a string based on the given wrap length, new line string,
+     * word wrapping strategy, and specific characters or patterns.
+     *
+     * @param str            The input string.
+     * @param wrapLength     The maximum length of a line.
+     * @param newLineStr     The string to use as a new line delimiter.
+     * @param wrapLongWords  Whether or not to wrap long words.
+     * @param wrapOn         Characters or patterns to wrap on.
+     * @return The wrapped string.
+     */
+    public static String wrap(final String str,
+                              int wrapLength,
+                              String newLineStr,
+                              final boolean wrapLongWords,
+                              String wrapOn) {
+        // Implementation...
+    }
+
+    // ... Other private methods
+}
+Note: The actual implementation of each method is represented with a comment (// Implementation...). This is a skeleton representation of the javadocs for the public methods. The actual descriptions can be enriched with more detailed information based on the exact functionality of each method.
+
+
+
+
+User
+the documentation should include examples to help illustrate the usage and expected behaviour of the code
+ChatGPT
+Certainly! Including examples in Javadocs is a great way to help users understand the expected behavior of methods. Here's the source code with Javadocs that include examples:
+
+java
+Copy code
+/**
+ * Utility class for string operations.
+ */
+public class Utils {
+
+    private static final int INDEX_NOT_FOUND = -1;
+    private static final String EMPTY = "";
+
+    /**
+     * Abbreviates a given string between specified indices and appends the provided suffix if needed.
+     * <p>
+     * Example:
+     * <pre>
+     *    Utils.abbreviate("Hello World", 0, 5, "...") returns "Hello..."
+     * </pre>
+     *
+     * @param str          The input string.
+     * @param lower        The lower bound index.
+     * @param upper        The upper bound index.
+     * @param appendToEnd  The string to append at the end.
+     * @return The abbreviated string.
+     * @throws IllegalArgumentException if given constraints are violated.
+     */
+    public static String abbreviate(final String str, int lower, int upper, final String appendToEnd) {
+        // Implementation...
+    }
+
+    /**
+     * Gets the initials from a given string based on provided delimiters.
+     * <p>
+     * Example:
+     * <pre>
+     *    Utils.initials("John A. Doe", ' ', '.') returns "JAD"
+     * </pre>
+     *
+     * @param str         The input string.
+     * @param delimiters  The character delimiters.
+     * @return The initials of the string.
+     */
+    public static String initials(final String str, final char... delimiters) {
+        // Implementation...
+    }
+
+    /**
+     * Swaps the case of a given string.
+     * <p>
+     * Example:
+     * <pre>
+     *    Utils.swapCase("Hello WORLD") returns "hELLO world"
+     * </pre>
+     *
+     * @param str The input string.
+     * @return The swapped case string.
+     */
+    public static String swapCase(final String str) {
+        // Implementation...
+    }
+
+    /**
+     * Wraps a string based on the given wrap length, new line string,
+     * word wrapping strategy, and specific characters or patterns.
+     * <p>
+     * Example:
+     * <pre>
+     *    Utils.wrap("The quick brown fox jumps", 10, "\n", true, " ") returns:
+     *    "The quick\nbrown fox\njumps"
+     * </pre>
+     *
+     * @param str            The input string.
+     * @param wrapLength     The maximum length of a line.
+     * @param newLineStr     The string to use as a new line delimiter.
+     * @param wrapLongWords  Whether or not to wrap long words.
+     * @param wrapOn         Characters or patterns to wrap on.
+     * @return The wrapped string.
+     */
+    public static String wrap(final String str,
+                              int wrapLength,
+                              String newLineStr,
+                              final boolean wrapLongWords,
+                              String wrapOn) {
+        // Implementation...
+    }
+
+    // ... Other private methods
+}
+The examples in the Javadocs provide a quick and straightforward way for users to understand how to use the methods and what output to expect.
+
+
+
+
+User
+The documentation should accurately describe the code's behavior, functionality, and any limitations or constraints
+ChatGPT
+Sure! Let's enhance the Javadocs to provide more descriptive details about the methods' behaviors, functionalities, and constraints.
+
+java
+Copy code
+/**
+ * Utility class providing a collection of string operations.
+ */
+public class Utils {
+
+    private static final int INDEX_NOT_FOUND = -1;
+    private static final String EMPTY = "";
+
+    /**
+     * Abbreviates a given string between specified indices and appends a provided suffix if the string is truncated.
+     * If the lower index is greater than the string's length, the returned string will end at the string's length.
+     * Upper index values less than the lower index or less than -1 are not allowed.
+     *
+     * Example:
+     * <pre>
+     *    Utils.abbreviate("Hello World", 0, 5, "...") returns "Hello..."
+     * </pre>
+     *
+     * @param str          The input string. Can be empty or null, in which case the input is returned unchanged.
+     * @param lower        The lower bound index. If greater than string length, string length is used.
+     * @param upper        The upper bound index. If set to -1 or greater than string length, string length is used.
+     * @param appendToEnd  The string to append if the original string is abbreviated.
+     * @return The abbreviated string.
+     * @throws IllegalArgumentException if upper index is less than -1 or less than the lower index.
+     */
+    public static String abbreviate(final String str, int lower, int upper, final String appendToEnd) {
+        // Implementation...
+    }
+
+    /**
+     * Extracts initials from a given string based on provided delimiters.
+     * If delimiters are not provided, space is used as a default delimiter.
+     * The returned string does not contain any delimiter characters.
+     *
+     * Example:
+     * <pre>
+     *    Utils.initials("John A. Doe", ' ', '.') returns "JAD"
+     * </pre>
+     *
+     * @param str         The input string. If empty or null, the original input is returned.
+     * @param delimiters  Character delimiters used to identify word boundaries.
+     * @return The initials formed from the string, omitting delimiter characters.
+     */
+    public static String initials(final String str, final char... delimiters) {
+        // Implementation...
+    }
+
+    /**
+     * Converts uppercase characters in the input string to lowercase and vice-versa.
+     * Whitespace characters are not altered, but they affect the case transformation of adjacent characters.
+     *
+     * Example:
+     * <pre>
+     *    Utils.swapCase("Hello WORLD") returns "hELLO world"
+     * </pre>
+     *
+     * @param str The input string. If empty or null, the original input is returned.
+     * @return The string with swapped case characters.
+     */
+    public static String swapCase(final String str) {
+        // Implementation...
+    }
+
+    /**
+     * Wraps a string at specified length, using given new line string and wrapping strategy.
+     * If the input string is null, the method returns null.
+     * For wrap length values less than 1, the wrap length is set to 1.
+     *
+     * Example:
+     * <pre>
+     *    Utils.wrap("The quick brown fox jumps", 10, "\n", true, " ") returns:
+     *    "The quick\nbrown fox\njumps"
+     * </pre>
+     *
+     * @param str            The input string.
+     * @param wrapLength     Maximum length for each line.
+     * @param newLineStr     String to use for new lines. If null, system's line separator is used.
+     * @param wrapLongWords  Flag to determine if long words should be split.
+     * @param wrapOn         Characters or patterns to wrap on. If blank, space is used.
+     * @return The wrapped string.
+     */
+    public static String wrap(final String str,
+                              int wrapLength,
+                              String newLineStr,
+                              final boolean wrapLongWords,
+                              String wrapOn) {
+        // Implementation...
+    }
+
+    // ... Other private methods
+}
+These descriptions should provide a clearer picture of the methods' functionality, behavior, and constraints. Always ensure that the documentation remains in sync with the code implementation, and update it if the behavior or functionality of the methods changes.
